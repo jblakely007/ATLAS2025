@@ -83,6 +83,9 @@ public class RobotContainer {
         // Start intake when entering teleop mode
         RobotModeTriggers.teleop().onTrue(algaeArm.intakeCommand());
 
+        // Stop intake when exiting telop mode
+        RobotModeTriggers.teleop().onFalse(algaeArm.stopCommand());
+
         // Right trigger shoots algae
         joystick.rightTrigger().whileTrue(algaeArm.shootCommand());
     }
