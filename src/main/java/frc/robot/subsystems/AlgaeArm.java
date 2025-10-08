@@ -2,6 +2,9 @@ package frc.robot.subsystems;
 
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.NeutralModeValue;
+import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard;
+import edu.wpi.first.wpilibj.shuffleboard.ShuffleboardTab;
+import edu.wpi.first.networktables.GenericEntry;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.wpilibj2.command.Command;
 
@@ -10,11 +13,21 @@ public class AlgaeArm extends SubsystemBase {
     private final TalonFX motor;
     
     // Constants - adjust these values as needed
-    private static final int MOTOR_CAN_ID = 10; // Change to your CAN ID
-    private static final double INTAKE_SPEED = 0.5; // Speed when intaking
-    private static final double HOLD_SPEED = 0.15; // Speed to hold algae
-    private static final double SHOOT_SPEED = -0.8; // Negative for opposite direction
-    private static final double CURRENT_THRESHOLD = 20.0; // Amps - triggers hold mode
+    private static final int MOTOR_CAN_ID = 10;
+    private static final double DEFAULT_INTAKE_SPEED = 0.5;
+    private static final double DEFAULT_HOLD_SPEED = 0.15;
+    private static final double DEFAULT_SHOOT_SPEED = -0.8;
+    private static final double DEFAULT_CURRENT_THRESHOLD = 20.0;
+    
+    // Tunable values via Shuffleboard
+    private final GenericEntry intakeSpeedEntry;
+    private final GenericEntry holdSpeedEntry;
+    private final GenericEntry shootSpeedEntry;
+    private final GenericEntry currentThresholdEntry;
+    
+    // Current values
+    private final GenericEntry currentDrawEntry;
+    private final GenericEntry hasAlgaeEntry;
     
     private boolean isIntaking = false;
     private boolean hasAlgae = false;
@@ -22,6 +35,31 @@ public class AlgaeArm extends SubsystemBase {
     public AlgaeArm() {
         motor = new TalonFX(MOTOR_CAN_ID);
         configureMotor();
+        
+        // Create Shuffleboard tab for AlgaeArm
+        ShuffleboardTab tab = Shuffleboard.getTab("AlgaeArm");
+        
+        // Add tunable speed values with static defaults
+        intakeSpeedEntry = tab.add("Intake Speed", DEFAULT_INTAKE_SPEED)
+            .withPosition(0, 0)
+            .getEntry();
+        holdSpeedEntry = tab.add("Hold Speed", DEFAULT_HOLD_SPEED)
+            .withPosition(0, 1)
+            .getEntry();
+        shootSpeedEntry = tab.add("Shoot Speed", DEFAULT_SHOOT_SPEED)
+            .withPosition(0, 2)
+            .getEntry();
+        currentThresholdEntry = tab.add("Current Threshold", DEFAULT_CURRENT_THRESHOLD)
+            .withPosition(0, 3)
+            .getEntry();
+            
+        // Add read-only status values
+        currentDrawEntry = tab.add("Current Draw", 0.0)
+            .withPosition(1, 0)
+            .getEntry();
+        hasAlgaeEntry = tab.add("Has Algae", false)
+            .withPosition(1, 1)
+            .getEntry();
     }
     
     private void configureMotor() {
@@ -34,7 +72,7 @@ public class AlgaeArm extends SubsystemBase {
     private void intake() {
         isIntaking = true;
         hasAlgae = false;
-        motor.set(INTAKE_SPEED);
+        motor.set(intakeSpeedEntry.getDouble(DEFAULT_INTAKE_SPEED));
     }
     
     /**
@@ -43,7 +81,7 @@ public class AlgaeArm extends SubsystemBase {
     private void hold() {
         isIntaking = false;
         hasAlgae = true;
-        motor.set(HOLD_SPEED);
+        motor.set(holdSpeedEntry.getDouble(DEFAULT_HOLD_SPEED));
     }
     
     /**
@@ -52,7 +90,7 @@ public class AlgaeArm extends SubsystemBase {
     private void shoot() {
         isIntaking = false;
         hasAlgae = false;
-        motor.set(SHOOT_SPEED);
+        motor.set(shootSpeedEntry.getDouble(DEFAULT_SHOOT_SPEED));
     }
     
     /**
@@ -79,8 +117,12 @@ public class AlgaeArm extends SubsystemBase {
     
     @Override
     public void periodic() {
+        // Update telemetry
+        currentDrawEntry.setDouble(getCurrent());
+        hasAlgaeEntry.setBoolean(hasAlgae);
+        
         // Monitor current during intake and auto-switch to hold
-        if (isIntaking && getCurrent() > CURRENT_THRESHOLD) {
+        if (isIntaking && getCurrent() > currentThresholdEntry.getDouble(DEFAULT_CURRENT_THRESHOLD)) {
             hold();
         }
     }
