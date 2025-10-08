@@ -13,7 +13,7 @@ public class AlgaeArm extends SubsystemBase {
     private final TalonFX motor;
     
     // Constants - adjust these values as needed
-    private static final int MOTOR_CAN_ID = 10;
+    private static final int MOTOR_CAN_ID = 13;
     private static final double DEFAULT_INTAKE_SPEED = 0.5;
     private static final double DEFAULT_HOLD_SPEED = 0.15;
     private static final double DEFAULT_SHOOT_SPEED = -0.8;
