@@ -20,6 +20,7 @@ import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine.Direction;
 import frc.robot.commands.DriveForwardCommand;
 import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.CommandSwerveDrivetrain;
+import frc.robot.subsystems.AlgaeArm;
 
 public class RobotContainer {
     private double MaxSpeed = TunerConstants.kSpeedAt12Volts.in(MetersPerSecond); // kSpeedAt12Volts desired top speed
@@ -37,6 +38,7 @@ public class RobotContainer {
     private final CommandXboxController joystick = new CommandXboxController(0);
 
     public final CommandSwerveDrivetrain drivetrain = TunerConstants.createDrivetrain();
+    private final AlgaeArm algaeArm = new AlgaeArm();
 
     public RobotContainer() {
         configureBindings();
@@ -77,6 +79,12 @@ public class RobotContainer {
         joystick.leftBumper().onTrue(drivetrain.runOnce(() -> drivetrain.seedFieldCentric()));
 
         drivetrain.registerTelemetry(logger::telemeterize);
+
+        // Start intake when entering teleop mode
+        RobotModeTriggers.teleop().onTrue(algaeArm.intakeCommand());
+
+        // Right trigger shoots algae
+        joystick.rightTrigger().whileTrue(algaeArm.shootCommand());
     }
 
     public Command getAutonomousCommand() {
