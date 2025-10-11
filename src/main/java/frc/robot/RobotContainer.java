@@ -9,6 +9,7 @@ import static edu.wpi.first.units.Units.*;
 import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
 import com.ctre.phoenix6.swerve.SwerveRequest;
 
+import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
@@ -20,6 +21,7 @@ import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine.Direction;
 import frc.robot.commands.DriveForwardCommand;
 import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.CommandSwerveDrivetrain;
+import frc.robot.subsystems.AlgaeArm;
 
 public class RobotContainer {
     private double MaxSpeed = TunerConstants.kSpeedAt12Volts.in(MetersPerSecond); // kSpeedAt12Volts desired top speed
@@ -37,11 +39,38 @@ public class RobotContainer {
     private final CommandXboxController joystick = new CommandXboxController(0);
 
     public final CommandSwerveDrivetrain drivetrain = TunerConstants.createDrivetrain();
+    private final AlgaeArm algaeArm = new AlgaeArm();
 
     public RobotContainer() {
         configureBindings();
     }
 
+    /**
+     * Configures all joystick button bindings and default commands for the robot.
+     *
+     * Setup for match start:
+     * 1. Robot should start in a disabled state where idle mode is applied to drive motors
+     * 2. Upon entering teleop mode, the intake will automatically activate
+     * 3. Press left bumper once at the beginning to reset the field-centric heading
+     *
+     * Drive controls:
+     * - Left joystick Y-axis: Forward/backward movement
+     * - Left joystick X-axis: Left/right movement
+     * - Right joystick X-axis: Rotation (counterclockwise/clockwise)
+     * - Button A: Brake mode (holds position)
+     * - Button B: Point mode (aims modules based on left joystick)
+     *
+     * Game piece controls:
+     * - Right trigger: Shoot algae
+     * - Entering teleop: Automatically starts intake
+     * - Exiting teleop: Automatically stops intake
+     *
+     * Calibration controls (not for match use):
+     * - Back + Y: SysId dynamic forward
+     * - Back + X: SysId dynamic reverse
+     * - Start + Y: SysId quasistatic forward
+     * - Start + X: SysId quasistatic reverse
+     */
     private void configureBindings() {
         // Note that X is defined as forward according to WPILib convention,
         // and Y is defined as to the left according to WPILib convention.
@@ -77,9 +106,24 @@ public class RobotContainer {
         joystick.leftBumper().onTrue(drivetrain.runOnce(() -> drivetrain.seedFieldCentric()));
 
         drivetrain.registerTelemetry(logger::telemeterize);
+
+        // Start intake when entering teleop mode
+        RobotModeTriggers.teleop().onTrue(algaeArm.intakeCommand());
+
+        // Stop intake when exiting telop mode
+        RobotModeTriggers.teleop().onFalse(algaeArm.stopCommand());
+
+        // Right trigger shoots algae
+        joystick.rightTrigger().whileTrue(algaeArm.shootCommand());
     }
 
     public Command getAutonomousCommand() {
-        return new DriveForwardCommand(drivetrain);
+        final double kFeetToMeters = 0.3048;
+        return Commands.sequence(
+            // Reset heading at start of autonomous
+            Commands.runOnce(() -> drivetrain.seedFieldCentric()),
+            // Drive foward 1 foot in robot-centric mode
+            new DriveForwardCommand(drivetrain, 1.0 * kFeetToMeters, false)
+        );
     }
 }
